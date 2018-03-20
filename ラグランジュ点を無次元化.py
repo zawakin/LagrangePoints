@@ -12,7 +12,11 @@ import matplotlib.pyplot as plt
 
 plt.style.use("ggplot")
 
-mu = 0.01 # M2 / (M1 + M2)
+### 慣性質量mu
+###  mu = M2 / (M1 + M2)
+mu = 0.01 
+
+
 x_unit = np.array([1.,0.])
 r0 = mu * x_unit # 重い方(M2)の天体座標
 r1 = (mu - 1) * x_unit # 軽い方(M1)の天体座標
@@ -27,21 +31,35 @@ Ls = [L1, L2, L3, L4, L5]
 C = np.sort(np.array([3+3**(4/3)*mu**(2/3) - 10*mu/3,
               3+3**(4/3)*mu**(2/3) - 14*mu/3,3+mu,3-mu]))
 
+################ Problem Setting #######################
+
+#ラグランジュ点を指定。
 x_base = L5
-              
+
+
+# 質点の個数
+N =100
+
+# 慣性系かどうか。 （True: 慣性系, False: 回転座標系）
+rotate = False
+
+########################################################
+
 print("criteria = {}".format(mu*25.96))
 def f_gravity(z):
+    """質点の位置と速度を並べた行列zの時間微分dz/dt。
+    	z = [
+    		[x1,x2,...,xn],
+    		[y1,y2,...,yn],
+    		[vx1,vx2,...,vxn],
+    		[vy1,vy2,...,vyn]
+    		]
+    """
     f = np.empty_like(z)
     f_x = f[:2]
     f_v = f[2:]
     x = z[:2]
     v = z[2:]
-#    inv_v = np.empty_like(v)
-#    inv_v[0,:] = v[1,:]
-#    inv_v[1,:] = - v[0,:]
-#    _f = 2  * inv_v + x
-#    f_v[:,:] = (-(1-mu)*(x - r0[:,np.newaxis]) / (np.linalg.norm(x-r0[:,np.newaxis], axis=0))**3  
-#                - mu*(x - r1[:,np.newaxis]) / (np.linalg.norm(x-r1[:,np.newaxis], axis=0))**3 + _f)
     rho0 = np.linalg.norm(x-r0[:,np.newaxis],axis=0)
     rho1 = np.linalg.norm(x-r1[:,np.newaxis],axis=0)
     f_vx = 2 * v[1] - (1-mu) * (x[0]-r0[0]) / rho0**3 - mu * (x[0]-r1[0]) / rho1**3 + x[0]
@@ -66,11 +84,9 @@ def RK4(dt, x, f):
 
 
 def gen():
-    N =10
+    ### ラグランジュ点まわりに正規分布ノイズを加えた小天体を配置。
     x = np.zeros((2,N)) + x_base[:,np.newaxis] + np.random.randn(2,N) * 0.01
-    
-#    x = np.zeros((2,N)) + x_base[:,np.newaxis]+ np.random.randn(2,N) * 0.01
-    v = np.zeros_like(x) #+ np.random.randn(2,N) * 0.01
+    v = np.zeros_like(x)
     z = np.vstack((x,v))
     dt = 0.01
     t = 0.
@@ -80,19 +96,17 @@ def gen():
         if ti % 10 == 0:
 
             yield t, z
-#            print(t)
             
 def func(data):
     t, z = data
 
     nmax = 2
     x = z[:2]
-#    v = z[2:]
     R = np.array([[np.cos(t),-np.sin(t)],
                    [np.sin(t),np.cos(t)]])
     
-    rotate = False
     if rotate:
+        # 回転座標にする処理
         _x = R @ x
         _r0 = R @ r0
         _r1 = R @ r1
@@ -103,7 +117,7 @@ def func(data):
     ax.cla()
     ax.set_aspect("equal")
     
-    ax.set_title("t = {}".format(t))
+    ax.set_title("t = {:.3f}".format(t))
     ax.set_xlim(-nmax,nmax)
     ax.set_ylim(-nmax,nmax)
     
@@ -112,10 +126,6 @@ def func(data):
     ax.scatter(_x_base[0],_x_base[1], c="black", s=6)
     ax.scatter(_r0[0],_r0[1], c="orange", s=30)
     ax.scatter(_r1[0],_r1[1], c="blue", s=6)
-    
-#    V = V_gravity(X_rot,Y_rot)
-#    plt.contour(X,Y, V, C)
-#    print("total E = {}".format(((z[2:,0]**2+z[2:,1])**2).sum()))
     
 fig = plt.figure()
 ax = fig.add_subplot(111)
